@@ -7,22 +7,31 @@ import usersFromServer from './api/users';
 import categoriesFromServer from './api/categories';
 import productsFromServer from './api/products';
 
-// формуємо продукти з категоріями та юзерами
 const preparedProducts = productsFromServer.map(prod => {
   const category = categoriesFromServer.find(cat => cat.id === prod.categoryId);
-
   const user = usersFromServer.find(u => u.id === category.ownerId);
 
   return { ...prod, category, user };
 });
 
-const getFilteredProducts = (products, activeUser, text) => {
+const getFilteredProducts = (
+  products,
+  activeUser,
+  text,
+  selectedCategories,
+) => {
   let filteredProducts = [...products];
 
   if (activeUser) {
     filteredProducts = filteredProducts.filter(
       product => product.user.name === activeUser,
     );
+  }
+
+  if (selectedCategories.length > 0) {
+    filteredProducts = filteredProducts.filter(product => {
+      return selectedCategories.includes(product.category.title);
+    });
   }
 
   const normalizedSearch = text.trim().toLowerCase();
@@ -39,16 +48,31 @@ const getFilteredProducts = (products, activeUser, text) => {
 export const App = () => {
   const [selectedUser, setSelectedUser] = useState('');
   const [query, setQuery] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState([]);
 
   const filteredProducts = getFilteredProducts(
     preparedProducts,
     selectedUser,
     query,
+    selectedCategories,
   );
 
   const handleResetFilters = () => {
     setSelectedUser('');
     setQuery('');
+    setSelectedCategories([]);
+  };
+
+  const handleCategoryClick = categoryTitle => {
+    if (categoryTitle === 'All') {
+      setSelectedCategories([]);
+    } else {
+      setSelectedCategories(prev => {
+        return prev.includes(categoryTitle)
+          ? prev.filter(cat => cat !== categoryTitle)
+          : [...prev, categoryTitle];
+      });
+    }
   };
 
   return (
@@ -69,7 +93,6 @@ export const App = () => {
               >
                 All
               </a>
-
               {usersFromServer.map(user => (
                 <a
                   key={user.id}
@@ -89,19 +112,14 @@ export const App = () => {
                   data-cy="SearchField"
                   type="text"
                   value={query}
-                  onChange={event => {
-                    setQuery(event.target.value.trimStart());
-                  }}
+                  onChange={e => setQuery(e.target.value.trimStart())}
                   className="input"
                   placeholder="Search"
                 />
-
                 <span className="icon is-left">
                   <i className="fas fa-search" aria-hidden="true" />
                 </span>
-
                 <span className="icon is-right">
-                  {/* eslint-disable-next-line jsx-a11y/control-has-associated-label */}
                   {query !== '' && (
                     <button
                       data-cy="ClearButton"
@@ -118,34 +136,28 @@ export const App = () => {
               <a
                 href="#/"
                 data-cy="AllCategories"
-                className="button is-success mr-6 is-outlined"
+                className={cn('button mr-6', {
+                  'is-success': true,
+                  'is-outlined': selectedCategories.length > 0,
+                })}
+                onClick={() => handleCategoryClick('All')}
               >
                 All
               </a>
 
-              <a
-                data-cy="Category"
-                className="button mr-2 my-1 is-info"
-                href="#/"
-              >
-                Category 1
-              </a>
-
-              <a data-cy="Category" className="button mr-2 my-1" href="#/">
-                Category 2
-              </a>
-
-              <a
-                data-cy="Category"
-                className="button mr-2 my-1 is-info"
-                href="#/"
-              >
-                Category 3
-              </a>
-
-              <a data-cy="Category" className="button mr-2 my-1" href="#/">
-                Category 4
-              </a>
+              {categoriesFromServer.map(cat => (
+                <a
+                  key={cat.id}
+                  data-cy="Category"
+                  href="#/"
+                  className={cn('button mr-2 my-1', {
+                    'is-info': selectedCategories.includes(cat.title),
+                  })}
+                  onClick={() => handleCategoryClick(cat.title)}
+                >
+                  {cat.title}
+                </a>
+              ))}
             </div>
 
             <div className="panel-block">
@@ -174,49 +186,10 @@ export const App = () => {
           >
             <thead>
               <tr>
-                <th>
-                  <span className="is-flex is-flex-wrap-nowrap">
-                    ID
-                    <a href="#/">
-                      <span className="icon">
-                        <i data-cy="SortIcon" className="fas fa-sort" />
-                      </span>
-                    </a>
-                  </span>
-                </th>
-
-                <th>
-                  <span className="is-flex is-flex-wrap-nowrap">
-                    Product
-                    <a href="#/">
-                      <span className="icon">
-                        <i data-cy="SortIcon" className="fas fa-sort-down" />
-                      </span>
-                    </a>
-                  </span>
-                </th>
-
-                <th>
-                  <span className="is-flex is-flex-wrap-nowrap">
-                    Category
-                    <a href="#/">
-                      <span className="icon">
-                        <i data-cy="SortIcon" className="fas fa-sort-up" />
-                      </span>
-                    </a>
-                  </span>
-                </th>
-
-                <th>
-                  <span className="is-flex is-flex-wrap-nowrap">
-                    User
-                    <a href="#/">
-                      <span className="icon">
-                        <i data-cy="SortIcon" className="fas fa-sort" />
-                      </span>
-                    </a>
-                  </span>
-                </th>
+                <th>ID</th>
+                <th>Product</th>
+                <th>Category</th>
+                <th>User</th>
               </tr>
             </thead>
 
@@ -226,13 +199,10 @@ export const App = () => {
                   <td className="has-text-weight-bold" data-cy="ProductId">
                     {product.id}
                   </td>
-
                   <td data-cy="ProductName">{product.name}</td>
-
                   <td data-cy="ProductCategory">
                     {`${product.category.icon} - ${product.category.title}`}
                   </td>
-
                   <td
                     data-cy="ProductUser"
                     className={cn({
