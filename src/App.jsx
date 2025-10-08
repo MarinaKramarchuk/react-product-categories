@@ -16,7 +16,7 @@ const preparedProducts = productsFromServer.map(prod => {
   return { ...prod, category, user };
 });
 
-const getFilteredProducts = (products, activeUser) => {
+const getFilteredProducts = (products, activeUser, text) => {
   let filteredProducts = [...products];
 
   if (activeUser) {
@@ -25,13 +25,26 @@ const getFilteredProducts = (products, activeUser) => {
     );
   }
 
+  const normalizedSearch = text.trim().toLowerCase();
+
+  if (normalizedSearch) {
+    filteredProducts = filteredProducts.filter(item => {
+      return item.name.toLowerCase().includes(normalizedSearch);
+    });
+  }
+
   return filteredProducts;
 };
 
 export const App = () => {
   const [selectedUser, setSelectedUser] = useState('');
+  const [query, setQuery] = useState('');
 
-  const filteredProducts = getFilteredProducts(preparedProducts, selectedUser);
+  const filteredProducts = getFilteredProducts(
+    preparedProducts,
+    selectedUser,
+    query,
+  );
 
   return (
     <div className="section">
@@ -70,10 +83,12 @@ export const App = () => {
                 <input
                   data-cy="SearchField"
                   type="text"
+                  value={query}
+                  onChange={event => {
+                    setQuery(event.target.value.trimStart());
+                  }}
                   className="input"
                   placeholder="Search"
-                  value=""
-                  readOnly
                 />
 
                 <span className="icon is-left">
@@ -82,11 +97,14 @@ export const App = () => {
 
                 <span className="icon is-right">
                   {/* eslint-disable-next-line jsx-a11y/control-has-associated-label */}
-                  <button
-                    data-cy="ClearButton"
-                    type="button"
-                    className="delete"
-                  />
+                  {query !== '' && (
+                    <button
+                      data-cy="ClearButton"
+                      type="button"
+                      className="delete"
+                      onClick={() => setQuery('')}
+                    />
+                  )}
                 </span>
               </p>
             </div>
